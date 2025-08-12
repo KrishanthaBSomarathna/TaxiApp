@@ -14,6 +14,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.aerotech.taxiapp.databinding.ActivityMainBinding
 import com.aerotech.taxiapp.model.Driver
 import com.aerotech.taxiapp.utils.DistanceUtils
+import com.google.firebase.auth.FirebaseAuth
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -41,6 +42,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // redirect to authentication if user is not signed in yet
+        if (FirebaseAuth.getInstance().currentUser == null) {
+            startActivity(Intent(this, AuthActivity::class.java))
+            finish()
+            return
+        }
 
         // keep your edge-to-edge behavior
         enableEdgeToEdge()

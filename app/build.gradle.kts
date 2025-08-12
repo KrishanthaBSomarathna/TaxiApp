@@ -1,3 +1,5 @@
+import org.gradle.kotlin.dsl.libs
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -55,15 +57,18 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     // Google Maps & Location
-    implementation ("com.google.android.gms:play-services-maps:18.1.0")
-    implementation ("com.google.android.gms:play-services-location:21.0.1")
+    implementation (libs.play.services.maps)
+    implementation (libs.play.services.location)
 
-    // Firebase using BoM to manage versions
-    implementation(platform("com.google.firebase:firebase-bom:33.6.0"))
-    implementation ("com.google.firebase:firebase-auth-ktx")
-    implementation ("com.google.firebase:firebase-database-ktx")
+    // Firebase using BoM to manage versions (literal to avoid catalog resolution issues)
+    implementation(platform("com.google.firebase:firebase-bom:34.1.0"))
+    implementation ("com.google.firebase:firebase-auth")
+    implementation ("com.google.firebase:firebase-database")
 
     // Stripe
-    implementation ("com.stripe:stripe-android:20.26.0")
+    implementation (libs.stripe.android)
+
+        // Phone number parsing/validation
+    implementation (libs.libphonenumber)
 
 }
