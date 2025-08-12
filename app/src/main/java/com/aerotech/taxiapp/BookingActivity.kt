@@ -5,6 +5,10 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.TextUtils
 import android.widget.Toast
+import com.google.android.material.datepicker.MaterialDatePicker
+import com.google.android.material.timepicker.MaterialTimePicker
+import com.google.android.material.timepicker.TimeFormat
+import com.aerotech.taxiapp.utils.DistanceUtils
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
@@ -31,6 +35,9 @@ class BookingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityBookingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // Toolbar back
+        binding.toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -44,16 +51,50 @@ class BookingActivity : AppCompatActivity() {
         userLng = intent.getDoubleExtra("userLng", 0.0)
 
         binding.driverNameTv.text = "Driver: $driverName"
+        val approxDistMeters = DistanceUtils.distanceMeters(userLat, userLng, driverLat, driverLng).toInt()
+        binding.driverInfoSubtitleTv.text = if (approxDistMeters > 0) "Approx. ${approxDistMeters} m away" else ""
 
         binding.selectDestBtn.setOnClickListener {
             startActivityForResult(Intent(this, SelectDestinationActivity::class.java), REQUEST_DEST)
         }
+
+        // Date/Time pickers
+        binding.tripDateTimeEt.setOnClickListener { showDateTimePicker() }
 
         binding.confirmBtn.setOnClickListener {
             if (!validate()) return@setOnClickListener
             val tripDateTime = binding.tripDateTimeEt.text.toString().trim()
             checkDriverAndBook(tripDateTime)
         }
+    }
+
+    private fun showDateTimePicker() {
+        val datePicker = MaterialDatePicker.Builder.datePicker()
+            .setTitleText("Select trip date")
+            .setSelection(MaterialDatePicker.todayInUtcMilliseconds())
+            .build()
+        datePicker.addOnPositiveButtonClickListener { selection ->
+            val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+            calendar.timeInMillis = selection
+            val year = calendar.get(Calendar.YEAR)
+            val month = calendar.get(Calendar.MONTH) + 1
+            val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+            val timePicker = MaterialTimePicker.Builder()
+                .setTimeFormat(TimeFormat.CLOCK_24H)
+                .setHour(Calendar.getInstance().get(Calendar.HOUR_OF_DAY))
+                .setMinute(0)
+                .setTitleText("Select time")
+                .build()
+            timePicker.addOnPositiveButtonClickListener {
+                val hour = timePicker.hour
+                val minute = timePicker.minute
+                val formatted = String.format(Locale.getDefault(), "%04d-%02d-%02d %02d:%02d", year, month, day, hour, minute)
+                binding.tripDateTimeEt.setText(formatted)
+            }
+            timePicker.show(supportFragmentManager, "timePicker")
+        }
+        datePicker.show(supportFragmentManager, "datePicker")
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
