@@ -74,18 +74,6 @@ class BookingActivity : AppCompatActivity() {
 
         // Date/Time pickers
         binding.tripDateTimeEt.setOnClickListener { showDateTimePicker() }
-        
-        // Add a button to check driver availability for a specific date
-        binding.checkAvailabilityBtn.setOnClickListener {
-            val selectedDate = binding.tripDateTimeEt.text.toString().trim()
-            if (selectedDate.isNotEmpty()) {
-                // Extract just the date part (YYYY-MM-DD)
-                val dateOnly = selectedDate.split(" ")[0]
-                showDriverAvailabilityForDate(dateOnly)
-            } else {
-                Toast.makeText(this, "Please select a date first", Toast.LENGTH_SHORT).show()
-            }
-        }
 
         binding.confirmBtn.setOnClickListener {
             if (!validate()) return@setOnClickListener
@@ -303,82 +291,6 @@ class BookingActivity : AppCompatActivity() {
     }
 
     /**
-     * Shows available time slots for a specific driver and date
-     * This helps users see when the driver is free
-     */
-    private fun showDriverAvailabilityForDate(date: String) {
-        val sanitizedDriverName = driverName
-            .replace(".", "_")
-            .replace("#", "_")
-            .replace("$", "_")
-            .replace("[", "_")
-            .replace("]", "_")
-        
-        val driverLocksRef = FirebaseDatabase.getInstance()
-            .getReference("driver_locks")
-            .child(sanitizedDriverName)
-            .child(date)
-        
-        driverLocksRef.get().addOnSuccessListener { snapshot ->
-            val bookedSlots = mutableListOf<String>()
-            
-            if (snapshot.exists()) {
-                // Get all booked time slots for this date
-                for (timeSlot in snapshot.children) {
-                    bookedSlots.add(timeSlot.key ?: "")
-                }
-            }
-            
-            // Generate available time slots (9 AM to 9 PM, hourly)
-            val availableSlots = mutableListOf<String>()
-            for (hour in 9..21) {
-                val timeSlot = String.format(Locale.getDefault(), "%s %02d:00", date, hour)
-                if (!bookedSlots.contains(timeSlot)) {
-                    availableSlots.add(timeSlot)
-                }
-            }
-            
-            // Show availability in a dialog
-            showAvailabilityDialog(availableSlots, bookedSlots)
-            
-        }.addOnFailureListener { exception ->
-            Toast.makeText(this, "Could not check availability: ${exception.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    /**
-     * Shows a dialog displaying driver availability for the selected date
-     */
-    private fun showAvailabilityDialog(availableSlots: List<String>, bookedSlots: List<String>) {
-        val message = StringBuilder()
-        message.append("Driver availability for ${driverName}:\n\n")
-        
-        if (availableSlots.isNotEmpty()) {
-            message.append("✅ Available times:\n")
-            availableSlots.forEach { slot ->
-                val timeOnly = slot.split(" ")[1]
-                message.append("  • $timeOnly\n")
-            }
-        } else {
-            message.append("❌ No available times for this date\n")
-        }
-        
-        if (bookedSlots.isNotEmpty()) {
-            message.append("\n❌ Booked times:\n")
-            bookedSlots.forEach { slot ->
-                val timeOnly = slot.split(" ")[1]
-                message.append("  • $timeOnly\n")
-            }
-        }
-        
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Driver Availability")
-            .setMessage(message.toString())
-            .setPositiveButton("OK") { _, _ -> }
-            .show()
-    }
-
-    /**
      * Checks if the user already has a booking with the specified driver on the same day
      */
     private fun checkExistingUserBooking(userId: String, driverName: String, tripDateTime: String, callback: (Boolean) -> Unit) {
@@ -473,7 +385,7 @@ class BookingActivity : AppCompatActivity() {
 
             // Additional validation for coordinates
             if (dLat < -90 || dLat > 90 || dLng < -180 || dLng > 180) {
-                Toast.makeText(this, "Invalid destination coordinates", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Please select a valid destination", Toast.LENGTH_SHORT).show()
                 return@addOnSuccessListener
             }
 
@@ -542,7 +454,7 @@ class BookingActivity : AppCompatActivity() {
                 println("  userPhone: '${booking.userPhone}'")
                 println("  userLat: ${booking.userLat}, userLng: ${booking.userLng}")
                 println("  driverName: '${booking.driverName}'")
-                println("  driverLat: ${booking.driverLat}, driverLng: ${booking.driverLng}")
+                println("  driverLat: ${booking.driverLat}, driverLng: ${booking.userLng}")
                 println("  destinationLat: ${booking.destinationLat}, destinationLng: ${booking.destinationLng}")
                 println("  destinationAddress: '${booking.destinationAddress}'")
                 println("  tripDateTime: '${booking.tripDateTime}'")
@@ -760,7 +672,7 @@ class BookingActivity : AppCompatActivity() {
 
                 rootRef.updateChildren(updates)
                     .addOnSuccessListener {
-                        Toast.makeText(this@BookingActivity, "Booking created successfully!", Toast.LENGTH_LONG).show()
+
                         showBookingSuccessNotification(driverName)
                         val homeIntent = Intent(this@BookingActivity, MainActivity::class.java).apply {
                             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)

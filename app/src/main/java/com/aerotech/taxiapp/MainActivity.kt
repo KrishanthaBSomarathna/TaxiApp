@@ -28,8 +28,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.widget.Toast
 import com.google.android.gms.maps.model.BitmapDescriptor
-import java.util.Calendar
-import java.util.Locale
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var binding: ActivityMainBinding
@@ -87,11 +85,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 i.putExtra("userLng", loc.longitude)
                 startActivity(i)
             }
-        }
-        
-        // Add a button to check driver availability
-        binding.checkDriverAvailabilityBtn.setOnClickListener {
-            showDriverAvailabilityDialog()
         }
 
         // request location
@@ -207,114 +200,5 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             if (dist < bestDist) { bestDist = dist; best = d }
         }
         return if (bestDist <= 1000.0) best else null
-    }
-
-    /**
-     * Shows a dialog with current driver availability status
-     */
-    private fun showDriverAvailabilityDialog() {
-        // Get tomorrow's date for checking availability
-        val tomorrow = Calendar.getInstance().apply {
-            add(Calendar.DAY_OF_YEAR, 1)
-        }
-        val dateStr = String.format(Locale.getDefault(), "%04d-%02d-%02d", 
-            tomorrow.get(Calendar.YEAR), 
-            tomorrow.get(Calendar.MONTH) + 1, 
-            tomorrow.get(Calendar.DAY_OF_MONTH))
-        
-        val message = StringBuilder()
-        message.append("Driver availability for tomorrow ($dateStr):\n\n")
-        
-        // Check each driver's availability
-        var checkedDrivers = 0
-        val totalDrivers = drivers.size
-        
-        drivers.forEach { driver ->
-            val sanitizedDriverName = driver.name
-                .replace(".", "_")
-                .replace("#", "_")
-                .replace("$", "_")
-                .replace("[", "_")
-                .replace("]", "_")
-            
-            val driverLocksRef = com.google.firebase.database.FirebaseDatabase.getInstance()
-                .getReference("driver_locks")
-                .child(sanitizedDriverName)
-                .child(dateStr)
-            
-            driverLocksRef.get().addOnSuccessListener { snapshot ->
-                checkedDrivers++
-                
-                if (snapshot.exists()) {
-                    val bookedSlots = snapshot.childrenCount
-                    message.append("${driver.name}: ${bookedSlots} time slots booked\n")
-                } else {
-                    message.append("${driver.name}: Available all day\n")
-                }
-                
-                // Show dialog when all drivers have been checked
-                if (checkedDrivers == totalDrivers) {
-                    showAvailabilityStatusDialog(message.toString())
-                }
-            }.addOnFailureListener { exception ->
-                checkedDrivers++
-                message.append("${driver.name}: Unable to check availability\n")
-                
-                if (checkedDrivers == totalDrivers) {
-                    showAvailabilityStatusDialog(message.toString())
-                }
-            }
-        }
-    }
-
-    /**
-     * Shows the availability status dialog
-     */
-    private fun showAvailabilityStatusDialog(message: String) {
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Driver Availability Status")
-            .setMessage(message)
-            .setPositiveButton("OK") { _, _ -> }
-            .show()
-    }
-
-    /**
-     * Shows detailed booking information for a specific driver and date
-     */
-    private fun showDriverBookingsDetail(driverName: String, date: String) {
-        val sanitizedDriverName = driverName
-            .replace(".", "_")
-            .replace("#", "_")
-            .replace("$", "_")
-            .replace("[", "_")
-            .replace("]", "_")
-        
-        val driverLocksRef = com.google.firebase.database.FirebaseDatabase.getInstance()
-            .getReference("driver_locks")
-            .child(sanitizedDriverName)
-            .child(date)
-        
-        driverLocksRef.get().addOnSuccessListener { snapshot ->
-            if (snapshot.exists()) {
-                val message = StringBuilder()
-                message.append("Bookings for $driverName on $date:\n\n")
-                
-                for (timeSlot in snapshot.children) {
-                    val time = timeSlot.key ?: ""
-                    val bookingId = timeSlot.getValue(String::class.java) ?: ""
-                    message.append("• $time: Booking ID $bookingId\n")
-                }
-                
-                androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle("Driver Bookings Detail")
-                    .setMessage(message.toString())
-                    .setPositiveButton("OK") { _, _ -> }
-                    .show()
-            } else {
-                Toast.makeText(this, "No bookings found for $driverName on $date", Toast.LENGTH_SHORT).show()
-            }
-        }.addOnFailureListener { exception ->
-            Toast.makeText(this, "Error loading booking details: ${exception.message}", Toast.LENGTH_SHORT).show()
-        }
     }
 }

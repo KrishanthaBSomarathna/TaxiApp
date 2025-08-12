@@ -32,7 +32,6 @@ class MyBookingsActivity : AppCompatActivity() {
 
         setupToolbar()
         setupRecyclerView()
-        setupSwipeRefresh()
         loadBookings()
     }
 
@@ -52,14 +51,7 @@ class MyBookingsActivity : AppCompatActivity() {
         binding.recyclerView.adapter = adapter
     }
 
-    private fun setupSwipeRefresh() {
-        binding.swipeRefresh.setOnRefreshListener { loadBookings() }
-        binding.swipeRefresh.setColorSchemeResources(
-            com.aerotech.taxiapp.R.color.primary,
-            com.aerotech.taxiapp.R.color.secondary,
-            com.aerotech.taxiapp.R.color.accent
-        )
-    }
+
 
     private fun loadBookings() {
         val user = auth.currentUser
@@ -90,12 +82,12 @@ class MyBookingsActivity : AppCompatActivity() {
                 adapter.notifyDataSetChanged()
                 hideLoadingState()
                 updateEmptyState()
-                binding.swipeRefresh.isRefreshing = false
+
             }
 
             override fun onCancelled(error: DatabaseError) {
                 hideLoadingState()
-                binding.swipeRefresh.isRefreshing = false
+//                binding.swipeRefresh.isRefreshing = false
                 Toast.makeText(this@MyBookingsActivity, "Failed to load bookings: ${error.message}", Toast.LENGTH_LONG).show()
             }
         })
