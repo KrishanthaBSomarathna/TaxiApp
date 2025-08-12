@@ -104,12 +104,25 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             // for ActivityCompat#requestPermissions for more details.
             return
         }
-        fused.lastLocation.addOnSuccessListener { loc ->
-            loc?.let {
-                userLocation = it
-                if (::map.isInitialized) updateMap()
-            }
+        // MOCK CURRENT LOCATION (~800m from Driver A)
+        // To change the mock location, edit the latitude/longitude below.
+        // Original location fetch has been commented out for mocking.
+        val mockLocation = Location("mock").apply {
+            // Driver A: 13.068500, 80.234938
+            // ~800m north is about +0.00719 degrees in latitude
+            latitude = 13.068500 + 0.00719
+            longitude = 80.234938
         }
+        userLocation = mockLocation
+        if (::map.isInitialized) updateMap()
+
+        // Real location fetch (restore this block to use device GPS):
+        // fused.lastLocation.addOnSuccessListener { loc ->
+        //     loc?.let {
+        //         userLocation = it
+        //         if (::map.isInitialized) updateMap()
+        //     }
+        // }
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
