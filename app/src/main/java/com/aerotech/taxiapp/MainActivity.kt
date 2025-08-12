@@ -23,6 +23,10 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.firebase.auth.FirebaseAuth
 import kotlin.math.roundToInt
+import androidx.core.content.ContextCompat
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import com.google.android.gms.maps.model.BitmapDescriptor
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var binding: ActivityMainBinding
@@ -137,7 +141,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         // draw drivers
         for (d in drivers) {
             val pos = LatLng(d.latitude, d.longitude)
-            map.addMarker(MarkerOptions().position(pos).title(d.name))
+            map.addMarker(
+                MarkerOptions()
+                    .position(pos)
+                    .title(d.name)
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW))
+            )
         }
         userLocation?.let { u ->
             val userLatLng = LatLng(u.latitude, u.longitude)
@@ -153,11 +162,28 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             for (d in drivers) {
                 val dist = DistanceUtils.distanceMeters(u.latitude, u.longitude, d.latitude, d.longitude).roundToInt()
                 val pos = LatLng(d.latitude, d.longitude)
-                map.addMarker(MarkerOptions().position(pos).title("${d.name} — ${dist} m"))
+                map.addMarker(
+                    MarkerOptions()
+                        .position(pos)
+                        .title("${d.name} — ${dist} m")
+                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW))
+                )
             }
         } ?: run {
             binding.bookNowBtn.isEnabled = false
         }
+    }
+
+    private fun bitmapDescriptorFromVector(vectorResId: Int): BitmapDescriptor {
+        val drawable = ContextCompat.getDrawable(this, vectorResId)
+            ?: throw IllegalArgumentException("Drawable not found")
+        val width = drawable.intrinsicWidth
+        val height = drawable.intrinsicHeight
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+        return BitmapDescriptorFactory.fromBitmap(bitmap)
     }
 
     private fun findNearestDriverWithin1Km(): Driver? {
