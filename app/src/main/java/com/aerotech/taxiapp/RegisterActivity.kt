@@ -44,6 +44,7 @@ class RegisterActivity : AppCompatActivity() {
     private fun registerUser() {
         val name = binding.nameEt.text.toString().trim()
         val email = binding.emailEt.text.toString().trim()
+        val phone = binding.phoneEt.text.toString().trim()
         val password = binding.passwordEt.text.toString().trim()
         val confirmPassword = binding.confirmPasswordEt.text.toString().trim()
 
@@ -53,6 +54,10 @@ class RegisterActivity : AppCompatActivity() {
         }
         if (email.isEmpty()) {
             binding.emailEt.error = "Email is required"
+            return
+        }
+        if (phone.isEmpty()) {
+            binding.phoneEt.error = "Phone is required"
             return
         }
         if (password.isEmpty()) {
@@ -77,6 +82,7 @@ class RegisterActivity : AppCompatActivity() {
                     val userMap = HashMap<String, Any>()
                     userMap["name"] = name
                     userMap["email"] = email
+                    userMap["phone"] = phone
 
                     database.reference.child("users").child(userId).setValue(userMap)
                         .addOnCompleteListener { dbTask ->

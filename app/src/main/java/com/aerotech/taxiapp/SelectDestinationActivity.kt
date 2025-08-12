@@ -73,7 +73,7 @@ class SelectDestinationActivity : AppCompatActivity(), OnMapReadyCallback {
         // MOCK current location for development (near Driver A ~800m north)
         val mock = LatLng(13.068500 + 0.00719, 80.234938)
         chosenLatLng = mock
-        chosenAddress = ""
+        chosenAddress = "Mock Location (13.07569, 80.234938)"
         map.clear()
         map.addMarker(MarkerOptions().position(mock).title("My location"))
         map.animateCamera(CameraUpdateFactory.newLatLngZoom(mock, 15f))
