@@ -1,5 +1,6 @@
 package com.aerotech.taxiapp
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.os.Build
@@ -73,12 +74,32 @@ class BookingActivity : AppCompatActivity() {
 
         // Date/Time pickers
         binding.tripDateTimeEt.setOnClickListener { showDateTimePicker() }
+        
+        // Add a button to check driver availability for a specific date
+        binding.checkAvailabilityBtn.setOnClickListener {
+            val selectedDate = binding.tripDateTimeEt.text.toString().trim()
+            if (selectedDate.isNotEmpty()) {
+                // Extract just the date part (YYYY-MM-DD)
+                val dateOnly = selectedDate.split(" ")[0]
+                showDriverAvailabilityForDate(dateOnly)
+            } else {
+                Toast.makeText(this, "Please select a date first", Toast.LENGTH_SHORT).show()
+            }
+        }
 
         binding.confirmBtn.setOnClickListener {
             if (!validate()) return@setOnClickListener
             val tripDateTime = binding.tripDateTimeEt.text.toString().trim()
-            // Use transactional lock approach to avoid double-book
-            createBookingWithLock(tripDateTime)
+            
+            // Check driver availability first
+            checkDriverAvailability(tripDateTime) { isAvailable ->
+                if (isAvailable) {
+                    // Use transactional lock approach to avoid double-book
+                    createBookingWithLock(tripDateTime)
+                } else {
+                    Toast.makeText(this, "Driver $driverName is not available at this time. Please select a different time or driver.", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 
@@ -105,31 +126,84 @@ class BookingActivity : AppCompatActivity() {
     }
 
     private fun showDateTimePicker() {
+        // Get current date and time
+        val now = Calendar.getInstance()
+        val today = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        
+        // Set minimum date to tomorrow (users can't book for today or past dates)
+        val tomorrow = Calendar.getInstance().apply {
+            add(Calendar.DAY_OF_YEAR, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        
         val datePicker = MaterialDatePicker.Builder.datePicker()
-            .setTitleText("Select trip date")
-            .setSelection(MaterialDatePicker.todayInUtcMilliseconds())
+            .setTitleText("Select trip date (upcoming days only)")
+            .setSelection(tomorrow.timeInMillis)
+            .setInputMode(MaterialDatePicker.INPUT_MODE_CALENDAR)
             .build()
+            
         datePicker.addOnPositiveButtonClickListener { selection ->
-            val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-            calendar.timeInMillis = selection
-            val year = calendar.get(Calendar.YEAR)
-            val month = calendar.get(Calendar.MONTH) + 1
-            val day = calendar.get(Calendar.DAY_OF_MONTH)
+            val selectedDate = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+            selectedDate.timeInMillis = selection
+            
+            // Additional validation to ensure selected date is not today or past
+            val todayStart = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            
+            if (selectedDate.before(todayStart)) {
+                Toast.makeText(this, "Please select a future date", Toast.LENGTH_SHORT).show()
+                return@addOnPositiveButtonClickListener
+            }
+            
+            val year = selectedDate.get(Calendar.YEAR)
+            val month = selectedDate.get(Calendar.MONTH) + 1
+            val day = selectedDate.get(Calendar.DAY_OF_MONTH)
 
             val timePicker = MaterialTimePicker.Builder()
                 .setTimeFormat(TimeFormat.CLOCK_24H)
-                .setHour(Calendar.getInstance().get(Calendar.HOUR_OF_DAY))
+                .setHour(9) // Default to 9 AM for better UX
                 .setMinute(0)
-                .setTitleText("Select time")
+                .setTitleText("Select trip time")
                 .build()
+                
             timePicker.addOnPositiveButtonClickListener {
                 val hour = timePicker.hour
                 val minute = timePicker.minute
+                
+                // Validate time for today's bookings (if user somehow selects today)
+                val selectedDateTime = Calendar.getInstance().apply {
+                    set(year, month - 1, day, hour, minute, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                
+                if (selectedDateTime.before(now)) {
+                    Toast.makeText(this, "Please select a future time", Toast.LENGTH_SHORT).show()
+                    return@addOnPositiveButtonClickListener
+                }
+                
                 val formatted = String.format(Locale.getDefault(), "%04d-%02d-%02d %02d:%02d", year, month, day, hour, minute)
                 binding.tripDateTimeEt.setText(formatted)
             }
             timePicker.show(supportFragmentManager, "timePicker")
         }
+        
+        // Set minimum date to tomorrow
+        datePicker.addOnNegativeButtonClickListener {
+            // User cancelled date selection
+        }
+        
         datePicker.show(supportFragmentManager, "datePicker")
     }
 
@@ -147,6 +221,13 @@ class BookingActivity : AppCompatActivity() {
     private fun validate(): Boolean {
         if (TextUtils.isEmpty(binding.tripDateTimeEt.text.toString().trim())) {
             binding.tripDateTimeEt.error = "Required"
+            return false
+        }
+        
+        // Validate that the selected date/time is in the future
+        val tripDateTimeStr = binding.tripDateTimeEt.text.toString().trim()
+        if (!isValidFutureDateTime(tripDateTimeStr)) {
+            binding.tripDateTimeEt.error = "Please select a future date and time"
             return false
         }
         
@@ -174,11 +255,171 @@ class BookingActivity : AppCompatActivity() {
     }
 
     /**
+     * Validates that the selected date and time is in the future
+     */
+    private fun isValidFutureDateTime(dateTimeStr: String): Boolean {
+        return try {
+            val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+            val selectedDateTime = formatter.parse(dateTimeStr)
+            val now = Date()
+            
+            selectedDateTime?.after(now) ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Checks if the driver is available at the specified date and time
+     * This provides a user-friendly check before attempting to create a booking
+     */
+    private fun checkDriverAvailability(tripDateTime: String, callback: (Boolean) -> Unit) {
+        // Sanitize driver name for Firebase key
+        val sanitizedDriverName = driverName
+            .replace(".", "_")
+            .replace("#", "_")
+            .replace("$", "_")
+            .replace("[", "_")
+            .replace("]", "_")
+        
+        val lockRef = FirebaseDatabase.getInstance()
+            .getReference("driver_locks")
+            .child(sanitizedDriverName)
+            .child(tripDateTime)
+        
+        lockRef.get().addOnSuccessListener { snapshot ->
+            if (snapshot.exists()) {
+                // Driver is already booked at this time
+                callback(false)
+            } else {
+                // Driver is available
+                callback(true)
+            }
+        }.addOnFailureListener { exception ->
+            // If we can't check availability, assume available and let the transaction handle it
+            println("DEBUG: Could not check driver availability: ${exception.message}")
+            callback(true)
+        }
+    }
+
+    /**
+     * Shows available time slots for a specific driver and date
+     * This helps users see when the driver is free
+     */
+    private fun showDriverAvailabilityForDate(date: String) {
+        val sanitizedDriverName = driverName
+            .replace(".", "_")
+            .replace("#", "_")
+            .replace("$", "_")
+            .replace("[", "_")
+            .replace("]", "_")
+        
+        val driverLocksRef = FirebaseDatabase.getInstance()
+            .getReference("driver_locks")
+            .child(sanitizedDriverName)
+            .child(date)
+        
+        driverLocksRef.get().addOnSuccessListener { snapshot ->
+            val bookedSlots = mutableListOf<String>()
+            
+            if (snapshot.exists()) {
+                // Get all booked time slots for this date
+                for (timeSlot in snapshot.children) {
+                    bookedSlots.add(timeSlot.key ?: "")
+                }
+            }
+            
+            // Generate available time slots (9 AM to 9 PM, hourly)
+            val availableSlots = mutableListOf<String>()
+            for (hour in 9..21) {
+                val timeSlot = String.format(Locale.getDefault(), "%s %02d:00", date, hour)
+                if (!bookedSlots.contains(timeSlot)) {
+                    availableSlots.add(timeSlot)
+                }
+            }
+            
+            // Show availability in a dialog
+            showAvailabilityDialog(availableSlots, bookedSlots)
+            
+        }.addOnFailureListener { exception ->
+            Toast.makeText(this, "Could not check availability: ${exception.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /**
+     * Shows a dialog displaying driver availability for the selected date
+     */
+    private fun showAvailabilityDialog(availableSlots: List<String>, bookedSlots: List<String>) {
+        val message = StringBuilder()
+        message.append("Driver availability for ${driverName}:\n\n")
+        
+        if (availableSlots.isNotEmpty()) {
+            message.append("✅ Available times:\n")
+            availableSlots.forEach { slot ->
+                val timeOnly = slot.split(" ")[1]
+                message.append("  • $timeOnly\n")
+            }
+        } else {
+            message.append("❌ No available times for this date\n")
+        }
+        
+        if (bookedSlots.isNotEmpty()) {
+            message.append("\n❌ Booked times:\n")
+            bookedSlots.forEach { slot ->
+                val timeOnly = slot.split(" ")[1]
+                message.append("  • $timeOnly\n")
+            }
+        }
+        
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Driver Availability")
+            .setMessage(message.toString())
+            .setPositiveButton("OK") { _, _ -> }
+            .show()
+    }
+
+    /**
+     * Checks if the user already has a booking with the specified driver on the same day
+     */
+    private fun checkExistingUserBooking(userId: String, driverName: String, tripDateTime: String, callback: (Boolean) -> Unit) {
+        // Extract date part from tripDateTime (YYYY-MM-DD)
+        val dateOnly = tripDateTime.split("T")[0]
+        
+        // Query bookings to check for existing user-driver combination on the same date
+        val bookingsRef = FirebaseDatabase.getInstance().getReference("bookings")
+        
+        bookingsRef.orderByChild("userId").equalTo(userId).get()
+            .addOnSuccessListener { snapshot ->
+                var hasExisting = false
+                
+                if (snapshot.exists()) {
+                    for (bookingSnapshot in snapshot.children) {
+                        val booking = bookingSnapshot.getValue(Booking::class.java)
+                        if (booking != null && 
+                            booking.driverName == driverName && 
+                            booking.tripDateTime.startsWith(dateOnly)) {
+                            hasExisting = true
+                            break
+                        }
+                    }
+                }
+                
+                callback(hasExisting)
+            }
+            .addOnFailureListener { exception ->
+                println("DEBUG: Error checking existing bookings: ${exception.message}")
+                // If we can't check, assume no existing booking to allow the process to continue
+                callback(false)
+            }
+    }
+
+    /**
      * Creates booking using a small transactional lock to avoid race conditions.
      * Writes both:
      *  - /bookings/{bookingId} => Booking
      *  - /driver_locks/{driverName}/{tripDateTime} => bookingId
      */
+    @SuppressLint("NewApi")
     private fun createBookingWithLock(tripDateTimeRaw: String) {
         val u = FirebaseAuth.getInstance().currentUser ?: run {
             Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show()
@@ -211,6 +452,7 @@ class BookingActivity : AppCompatActivity() {
                 return@addOnSuccessListener
             }
 
+            // Check if user already has a booking with this driver on the same day
             val destTag = binding.destinationTv.tag as? String ?: ""
             val parts = destTag.split(",")
             val dLat = parts.getOrNull(0)?.toDoubleOrNull() ?: 0.0
@@ -268,55 +510,64 @@ class BookingActivity : AppCompatActivity() {
                 return@addOnSuccessListener
             }
 
-            val booking = Booking(
-                userId = uid,
-                userName = userName,
-                userPhone = phone,
-                userLat = userLat,
-                userLng = userLng,
-                driverName = driverName,
-                driverLat = driverLat,
-                driverLng = driverLng,
-                destinationLat = dLat,
-                destinationLng = dLng,
-                destinationAddress = dAddr,
-                tripDateTime = formattedTripDateTime,
-                paymentType = paymentType,
-                bookingDateTime = bookingDateTime
-            )
+            // Check for existing user booking with this driver on the same day
+            checkExistingUserBooking(uid, driverName, formattedTripDateTime) { hasExisting ->
+                if (hasExisting) {
+                    Toast.makeText(this, "You already have a booking with $driverName on this day. Please select a different driver or date.", Toast.LENGTH_LONG).show()
+                    return@checkExistingUserBooking
+                }
 
-            // Debug: Print booking data for troubleshooting
-            println("DEBUG: Booking data:")
-            println("  userId: '${booking.userId}'")
-            println("  userName: '${booking.userName}'")
-            println("  userPhone: '${booking.userPhone}'")
-            println("  userLat: ${booking.userLat}, userLng: ${booking.userLng}")
-            println("  driverName: '${booking.driverName}'")
-            println("  driverLat: ${booking.driverLat}, driverLng: ${booking.driverLng}")
-            println("  destinationLat: ${booking.destinationLat}, destinationLng: ${booking.destinationLng}")
-            println("  destinationAddress: '${booking.destinationAddress}'")
-            println("  tripDateTime: '${booking.tripDateTime}'")
-            println("  paymentType: '${booking.paymentType}'")
-            println("  bookingDateTime: '${booking.bookingDateTime}'")
+                // Continue with booking creation
+                val booking = Booking(
+                    userId = uid,
+                    userName = userName,
+                    userPhone = phone,
+                    userLat = userLat,
+                    userLng = userLng,
+                    driverName = driverName,
+                    driverLat = driverLat,
+                    driverLng = driverLng,
+                    destinationLat = dLat,
+                    destinationLng = dLng,
+                    destinationAddress = dAddr,
+                    tripDateTime = formattedTripDateTime,
+                    paymentType = paymentType,
+                    bookingDateTime = bookingDateTime
+                )
 
-            if (!validateBookingData(booking)) {
-                Toast.makeText(this, "Invalid booking data", Toast.LENGTH_SHORT).show()
-                return@addOnSuccessListener
+                // Debug: Print booking data for troubleshooting
+                println("DEBUG: Booking data:")
+                println("  userId: '${booking.userId}'")
+                println("  userName: '${booking.userName}'")
+                println("  userPhone: '${booking.userPhone}'")
+                println("  userLat: ${booking.userLat}, userLng: ${booking.userLng}")
+                println("  driverName: '${booking.driverName}'")
+                println("  driverLat: ${booking.driverLat}, driverLng: ${booking.driverLng}")
+                println("  destinationLat: ${booking.destinationLat}, destinationLng: ${booking.destinationLng}")
+                println("  destinationAddress: '${booking.destinationAddress}'")
+                println("  tripDateTime: '${booking.tripDateTime}'")
+                println("  paymentType: '${booking.paymentType}'")
+                println("  bookingDateTime: '${booking.bookingDateTime}'")
+
+                if (!validateBookingData(booking)) {
+                    Toast.makeText(this, "Invalid booking data", Toast.LENGTH_SHORT).show()
+                    return@checkExistingUserBooking
+                }
+
+                // Prepare lock path: sanitize driverName for a firebase key
+                val sanitizedDriverName = driverName
+                    .replace(".", "_")
+                    .replace("#", "_")
+                    .replace("$", "_")
+                    .replace("[", "_")
+                    .replace("]", "_")
+
+                val lockPath = "driver_locks/$sanitizedDriverName"
+                val lockRef = FirebaseDatabase.getInstance().getReference(lockPath).child(formattedTripDateTime)
+
+                // Try to create a lock via transaction
+                runTransactionWithRetry(lockRef, booking, sanitizedDriverName, formattedTripDateTime, driverName, 0)
             }
-
-            // Prepare lock path: sanitize driverName for a firebase key
-            val sanitizedDriverName = driverName
-                .replace(".", "_")
-                .replace("#", "_")
-                .replace("$", "_")
-                .replace("[", "_")
-                .replace("]", "_")
-
-            val lockPath = "driver_locks/$sanitizedDriverName"
-            val lockRef = FirebaseDatabase.getInstance().getReference(lockPath).child(formattedTripDateTime)
-
-            // Try to create a lock via transaction
-            runTransactionWithRetry(lockRef, booking, sanitizedDriverName, formattedTripDateTime, driverName, 0)
         }.addOnFailureListener { exception ->
             exception.printStackTrace()
             val errorMessage = when (exception) {
@@ -339,6 +590,7 @@ class BookingActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun showBookingSuccessNotification(driverName: String) {
         createNotificationChannelIfNeeded()
         val tapIntent = Intent(this, MainActivity::class.java).apply {
