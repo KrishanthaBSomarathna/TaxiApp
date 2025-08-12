@@ -2,4 +2,56 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    
+    <!-- Primary Colors -->
+    <color name="primary">#FF1976D2</color>
+    <color name="primary_dark">#FF1565C0</color>
+    <color name="primary_light">#FFBBDEFB</color>
+    <color name="primary_color">#FF1976D2</color> <!-- Alias for compatibility -->
+    
+    <!-- Secondary Colors -->
+    <color name="secondary">#FF26A69A</color>
+    <color name="secondary_dark">#FF00838F</color>
+    <color name="secondary_light">#FFB2DFDB</color>
+    <color name="secondary_color">#FF26A69A</color> <!-- Alias for compatibility -->
+    
+    <!-- Accent Colors -->
+    <color name="accent">#FFFF9800</color>
+    <color name="accent_dark">#FFF57C00</color>
+    
+    <!-- Status Colors -->
+    <color name="success">#FF4CAF50</color>
+    <color name="warning">#FFFFC107</color>
+    <color name="error">#FFF44336</color>
+    <color name="info">#FF2196F3</color>
+    
+    <!-- Neutral Colors -->
+    <color name="surface">#FFFFFFFF</color>
+    <color name="surface_variant">#FFF5F5F5</color>
+    <color name="background">#FFFAFAFA</color>
+    <color name="surface_color">#FFFFFFFF</color> <!-- Alias for compatibility -->
+    <color name="background_color">#FFFAFAFA</color> <!-- Alias for compatibility -->
+    <color name="on_surface">#FF1C1B1F</color>
+    <color name="on_surface_variant">#FF49454F</color>
+    <color name="outline">#FF79747E</color>
+    <color name="outline_variant">#FFCAC4D0</color>
+    
+    <!-- Card Colors -->
+    <color name="card_background">#FFFFFFFF</color>
+    <color name="card_stroke">#FFE7E0EC</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#FF1C1B1F</color>
+    <color name="text_secondary">#FF49454F</color>
+    <color name="text_tertiary">#FF79747E</color>
+    
+    <!-- Dark Theme Specific Colors -->
+    <color name="dark_surface">#FF121212</color>
+    <color name="dark_surface_variant">#FF1E1E1E</color>
+    <color name="dark_background">#FF000000</color>
+    <color name="dark_card_background">#FF1E1E1E</color>
+    <color name="dark_card_stroke">#FF2C2C2C</color>
+    <color name="dark_text_primary">#FFFFFFFF</color>
+    <color name="dark_text_secondary">#FFB3B3B3</color>
+    <color name="dark_text_tertiary">#FF808080</color>
 </resources>

@@ -89,7 +89,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
         
-       
+        // Add a button to check driver availability
+        binding.checkDriverAvailabilityBtn.setOnClickListener {
+            showDriverAvailabilityDialog()
+        }
 
         // request location
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {

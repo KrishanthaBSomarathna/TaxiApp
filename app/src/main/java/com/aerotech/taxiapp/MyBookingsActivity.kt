@@ -1,134 +1,172 @@
- package com.aerotech.taxiapp
+package com.aerotech.taxiapp
 
- import android.app.AlertDialog
- import android.os.Bundle
- import android.view.View
- import android.widget.Toast
- import androidx.activity.enableEdgeToEdge
- import androidx.appcompat.app.AppCompatActivity
- import androidx.recyclerview.widget.LinearLayoutManager
- import com.aerotech.taxiapp.databinding.ActivityMyBookingsBinding
- import com.aerotech.taxiapp.model.Booking
- import com.google.firebase.auth.FirebaseAuth
- import com.google.firebase.database.*
+import android.app.AlertDialog
+import android.os.Bundle
+import android.view.View
+import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.aerotech.taxiapp.databinding.ActivityMyBookingsBinding
+import com.aerotech.taxiapp.model.Booking
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.*
 
- data class BookingListItem(
-     val id: String,
-     val booking: Booking
- )
+data class BookingListItem(
+    val id: String,
+    val booking: Booking
+)
 
- class MyBookingsActivity : AppCompatActivity() {
-     private lateinit var binding: ActivityMyBookingsBinding
-     private val database by lazy { FirebaseDatabase.getInstance() }
-     private val auth by lazy { FirebaseAuth.getInstance() }
-     private val items: MutableList<BookingListItem> = mutableListOf()
-     private lateinit var adapter: MyBookingsAdapter
+class MyBookingsActivity : AppCompatActivity() {
+    private lateinit var binding: ActivityMyBookingsBinding
+    private val database by lazy { FirebaseDatabase.getInstance() }
+    private val auth by lazy { FirebaseAuth.getInstance() }
+    private val items: MutableList<BookingListItem> = mutableListOf()
+    private lateinit var adapter: MyBookingsAdapter
 
-     override fun onCreate(savedInstanceState: Bundle?) {
-         super.onCreate(savedInstanceState)
-         enableEdgeToEdge()
-         binding = ActivityMyBookingsBinding.inflate(layoutInflater)
-         setContentView(binding.root)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        binding = ActivityMyBookingsBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-         binding.recyclerView.layoutManager = LinearLayoutManager(this)
-         adapter = MyBookingsAdapter(items, ::onCancelClicked)
-         binding.recyclerView.adapter = adapter
+        setupToolbar()
+        setupRecyclerView()
+        setupSwipeRefresh()
+        loadBookings()
+    }
 
-         binding.swipeRefresh.setOnRefreshListener { loadBookings() }
+    private fun setupToolbar() {
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.setDisplayShowHomeEnabled(true)
+        
+        binding.toolbar.setNavigationOnClickListener {
+            onBackPressed()
+        }
+    }
 
-         loadBookings()
-     }
+    private fun setupRecyclerView() {
+        binding.recyclerView.layoutManager = LinearLayoutManager(this)
+        adapter = MyBookingsAdapter(items, ::onCancelClicked)
+        binding.recyclerView.adapter = adapter
+    }
 
-     private fun loadBookings() {
-         val user = auth.currentUser
-         if (user == null) {
-             Toast.makeText(this, "You are not signed in", Toast.LENGTH_SHORT).show()
-             finish()
-             return
-         }
+    private fun setupSwipeRefresh() {
+        binding.swipeRefresh.setOnRefreshListener { loadBookings() }
+        binding.swipeRefresh.setColorSchemeResources(
+            com.aerotech.taxiapp.R.color.primary,
+            com.aerotech.taxiapp.R.color.secondary,
+            com.aerotech.taxiapp.R.color.accent
+        )
+    }
 
-         binding.progress.visibility = View.VISIBLE
-         binding.emptyView.visibility = View.GONE
+    private fun loadBookings() {
+        val user = auth.currentUser
+        if (user == null) {
+            Toast.makeText(this, "You are not signed in", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
 
-         val ref = database.getReference("bookings")
-             .orderByChild("userId")
-             .equalTo(user.uid)
+        showLoadingState()
 
-         ref.addListenerForSingleValueEvent(object : ValueEventListener {
-             override fun onDataChange(snapshot: DataSnapshot) {
-                 items.clear()
-                 if (snapshot.exists()) {
-                     for (child in snapshot.children) {
-                         val booking = child.getValue(Booking::class.java)
-                         if (booking != null) {
-                             items.add(BookingListItem(child.key ?: "", booking))
-                         }
-                     }
-                 }
-                 items.sortByDescending { it.booking.bookingDateTime }
-                 adapter.notifyDataSetChanged()
-                 binding.progress.visibility = View.GONE
-                 binding.emptyView.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
-                 binding.swipeRefresh.isRefreshing = false
-             }
+        val ref = database.getReference("bookings")
+            .orderByChild("userId")
+            .equalTo(user.uid)
 
-             override fun onCancelled(error: DatabaseError) {
-                 binding.progress.visibility = View.GONE
-                 binding.swipeRefresh.isRefreshing = false
-                 Toast.makeText(this@MyBookingsActivity, "Failed to load bookings: ${error.message}", Toast.LENGTH_LONG).show()
-             }
-         })
-     }
+        ref.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                items.clear()
+                if (snapshot.exists()) {
+                    for (child in snapshot.children) {
+                        val booking = child.getValue(Booking::class.java)
+                        if (booking != null) {
+                            items.add(BookingListItem(child.key ?: "", booking))
+                        }
+                    }
+                }
+                items.sortByDescending { it.booking.bookingDateTime }
+                adapter.notifyDataSetChanged()
+                hideLoadingState()
+                updateEmptyState()
+                binding.swipeRefresh.isRefreshing = false
+            }
 
-     private fun onCancelClicked(item: BookingListItem) {
-         AlertDialog.Builder(this)
-             .setTitle("Cancel booking?")
-             .setMessage("Are you sure you want to cancel this booking with ${item.booking.driverName} at ${item.booking.tripDateTime}?")
-             .setPositiveButton("Yes") { _, _ -> cancelBooking(item) }
-             .setNegativeButton("No", null)
-             .show()
-     }
+            override fun onCancelled(error: DatabaseError) {
+                hideLoadingState()
+                binding.swipeRefresh.isRefreshing = false
+                Toast.makeText(this@MyBookingsActivity, "Failed to load bookings: ${error.message}", Toast.LENGTH_LONG).show()
+            }
+        })
+    }
 
-     private fun cancelBooking(item: BookingListItem) {
-         val sanitizedDriverName = item.booking.driverName
-             .replace(".", "_")
-             .replace("#", "_")
-             .replace("$", "_")
-             .replace("[", "_")
-             .replace("]", "_")
+    private fun showLoadingState() {
+        binding.progress.visibility = View.VISIBLE
+        binding.emptyView.visibility = View.GONE
+        binding.recyclerView.visibility = View.GONE
+    }
 
-         val lockRef = database.getReference("driver_locks")
-             .child(sanitizedDriverName)
-             .child(item.booking.tripDateTime)
+    private fun hideLoadingState() {
+        binding.progress.visibility = View.GONE
+        binding.recyclerView.visibility = View.VISIBLE
+    }
 
-         // First: attempt to release the lock only if it matches this booking id
-         lockRef.runTransaction(object : Transaction.Handler {
-             override fun doTransaction(currentData: MutableData): Transaction.Result {
-                 if (currentData.value == item.id) {
-                     currentData.value = null
-                 }
-                 return Transaction.success(currentData)
-             }
+    private fun updateEmptyState() {
+        binding.emptyView.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+        binding.recyclerView.visibility = if (items.isEmpty()) View.GONE else View.VISIBLE
+    }
 
-             override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
-                 // Regardless of lock result, proceed to remove the booking
-                 removeBooking(item)
-             }
-         })
-     }
+    private fun onCancelClicked(item: BookingListItem) {
+        AlertDialog.Builder(this)
+            .setTitle("Cancel Booking?")
+            .setMessage("Are you sure you want to cancel this booking with ${item.booking.driverName}?")
+            .setPositiveButton("Yes, Cancel") { _, _ -> cancelBooking(item) }
+            .setNegativeButton("No, Keep It", null)
+            .setIcon(com.aerotech.taxiapp.R.drawable.ic_cancel)
+            .show()
+    }
 
-     private fun removeBooking(item: BookingListItem) {
-         database.getReference("bookings").child(item.id)
-             .removeValue()
-             .addOnSuccessListener {
-                 Toast.makeText(this, "Booking cancelled", Toast.LENGTH_SHORT).show()
-                 // Refresh list
-                 loadBookings()
-             }
-             .addOnFailureListener { ex ->
-                 Toast.makeText(this, "Failed to cancel: ${ex.message}", Toast.LENGTH_LONG).show()
-             }
-     }
- }
+    private fun cancelBooking(item: BookingListItem) {
+        val sanitizedDriverName = item.booking.driverName
+            .replace(".", "_")
+            .replace("#", "_")
+            .replace("$", "_")
+            .replace("[", "_")
+            .replace("]", "_")
+
+        val lockRef = database.getReference("driver_locks")
+            .child(sanitizedDriverName)
+            .child(item.booking.tripDateTime)
+
+        // First: attempt to release the lock only if it matches this booking id
+        lockRef.runTransaction(object : Transaction.Handler {
+            override fun doTransaction(currentData: MutableData): Transaction.Result {
+                if (currentData.value == item.id) {
+                    currentData.value = null
+                }
+                return Transaction.success(currentData)
+            }
+
+            override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
+                // Regardless of lock result, proceed to remove the booking
+                removeBooking(item)
+            }
+        })
+    }
+
+    private fun removeBooking(item: BookingListItem) {
+        database.getReference("bookings").child(item.id)
+            .removeValue()
+            .addOnSuccessListener {
+                Toast.makeText(this, "Booking cancelled successfully", Toast.LENGTH_SHORT).show()
+                // Refresh list
+                loadBookings()
+            }
+            .addOnFailureListener { ex ->
+                Toast.makeText(this, "Failed to cancel booking: ${ex.message}", Toast.LENGTH_LONG).show()
+            }
+    }
+}
 
 
