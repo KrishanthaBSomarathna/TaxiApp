@@ -13,6 +13,20 @@
         android:theme="@style/Theme.TaxiApp"
         tools:targetApi="31">
         <activity
+            android:name=".BookingActivity"
+            android:exported="false" />
+        <activity
+            android:name=".SelectDestinationActivity"
+            android:exported="false" />
+        <activity
+            android:name=".AuthActivity"
+            android:exported="false" />
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyASQUkl6vBzvS2yPnH5NgB9VKL6yOeFEOg" />
+
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>

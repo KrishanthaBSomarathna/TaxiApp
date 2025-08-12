@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".AuthActivity">
+    <EditText android:id="@+id/nameEt" android:hint="Name" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+    <EditText android:id="@+id/phoneEt" android:hint="Phone (E.164 e.g. +911234..)" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="phone"/>
+    <Button android:id="@+id/sendOtpBtn" android:text="Send OTP" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"/>
+    <LinearLayout android:id="@+id/otpContainer" android:visibility="gone" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content">
+        <EditText android:id="@+id/otpEt" android:hint="OTP code" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="number"/>
+        <Button android:id="@+id/verifyOtpBtn" android:text="Verify OTP" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"/>
+    </LinearLayout>
+    <ProgressBar android:id="@+id/progress" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
