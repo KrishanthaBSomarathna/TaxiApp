@@ -35,6 +35,10 @@ class SelectDestinationActivity : AppCompatActivity(), OnMapReadyCallback {
         val mapFrag = supportFragmentManager.findFragmentById(R.id.destMap) as com.google.android.gms.maps.SupportMapFragment
         mapFrag.getMapAsync(this)
 
+        binding.myLocationBtn.setOnClickListener {
+            centerToMockCurrentLocation()
+        }
+
         binding.chooseBtn.setOnClickListener {
             chosenLatLng?.let {
                 val data = intent
@@ -50,6 +54,8 @@ class SelectDestinationActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onMapReady(googleMap: GoogleMap) {
         map = googleMap
         map.uiSettings.isZoomControlsEnabled = true
+        // Default to mock current location
+        centerToMockCurrentLocation()
         map.setOnMapClickListener { latLng ->
             chosenLatLng = latLng
             map.clear()
@@ -61,5 +67,32 @@ class SelectDestinationActivity : AppCompatActivity(), OnMapReadyCallback {
                 chosenAddress = if (list != null && list.isNotEmpty()) list[0].getAddressLine(0) else ""
             } catch (e: Exception) { chosenAddress = "" }
         }
+    }
+
+    private fun centerToMockCurrentLocation() {
+        // MOCK current location for development (near Driver A ~800m north)
+        val mock = LatLng(13.068500 + 0.00719, 80.234938)
+        chosenLatLng = mock
+        chosenAddress = ""
+        map.clear()
+        map.addMarker(MarkerOptions().position(mock).title("My location"))
+        map.animateCamera(CameraUpdateFactory.newLatLngZoom(mock, 15f))
+
+        // Real device location (uncomment to use real GPS):
+        // val fused = LocationServices.getFusedLocationProviderClient(this)
+        // if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+        //     ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        //     ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 200)
+        //     return
+        // }
+        // fused.lastLocation.addOnSuccessListener { loc ->
+        //     loc?.let {
+        //         val here = LatLng(it.latitude, it.longitude)
+        //         chosenLatLng = here
+        //         map.clear()
+        //         map.addMarker(MarkerOptions().position(here).title("My location"))
+        //         map.animateCamera(CameraUpdateFactory.newLatLngZoom(here, 15f))
+        //     }
+        // }
     }
 }
