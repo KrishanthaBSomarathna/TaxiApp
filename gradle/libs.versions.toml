@@ -16,6 +16,7 @@ firebaseDatabase = "22.0.0"
 playServicesLocation = "21.3.0"
 playServicesMaps = "19.2.0"
 stripeAndroid = "20.26.0"
+firebaseAuth = "24.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -34,6 +35,7 @@ firebase-database = { group = "com.google.firebase", name = "firebase-database",
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
 play-services-maps = { module = "com.google.android.gms:play-services-maps", version.ref = "playServicesMaps" }
 stripe-android = { module = "com.stripe:stripe-android", version.ref = "stripeAndroid" }
+firebase-auth = { group = "com.google.firebase", name = "firebase-auth", version.ref = "firebaseAuth" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

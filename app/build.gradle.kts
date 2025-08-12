@@ -62,8 +62,8 @@ dependencies {
 
     // Firebase using BoM to manage versions (literal to avoid catalog resolution issues)
     implementation(platform("com.google.firebase:firebase-bom:34.1.0"))
-    implementation ("com.google.firebase:firebase-auth")
-    implementation ("com.google.firebase:firebase-database")
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-database")
 
     // Stripe
     implementation (libs.stripe.android)

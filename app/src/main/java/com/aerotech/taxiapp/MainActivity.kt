@@ -14,7 +14,6 @@ import androidx.core.view.WindowInsetsCompat
 import com.aerotech.taxiapp.databinding.ActivityMainBinding
 import com.aerotech.taxiapp.model.Driver
 import com.aerotech.taxiapp.utils.DistanceUtils
-import com.google.firebase.auth.FirebaseAuth
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -22,6 +21,7 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.firebase.auth.FirebaseAuth
 import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -87,6 +87,23 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun fetchLocation() {
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return
+        }
         fused.lastLocation.addOnSuccessListener { loc ->
             loc?.let {
                 userLocation = it
