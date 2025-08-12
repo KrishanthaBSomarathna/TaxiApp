@@ -71,4 +71,7 @@ dependencies {
         // Phone number parsing/validation
     implementation (libs.libphonenumber)
 
+    // Swipe to refresh
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+
 }

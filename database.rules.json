@@ -11,6 +11,7 @@
     },
 
     "bookings": {
+      ".indexOn": ["userId"],
       "$bookingId": {
         ".read": "auth != null && (data.child('userId').val() == auth.uid || newData.child('userId').val() == auth.uid)",
         ".write": "auth != null"

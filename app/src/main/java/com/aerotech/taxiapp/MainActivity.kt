@@ -67,6 +67,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val mapFrag = supportFragmentManager.findFragmentById(R.id.map) as com.google.android.gms.maps.SupportMapFragment
         mapFrag.getMapAsync(this)
 
+        binding.myBookingsBtn.setOnClickListener {
+            startActivity(Intent(this, MyBookingsActivity::class.java))
+        }
+
         binding.bookNowBtn.isEnabled = false
         binding.bookNowBtn.setOnClickListener {
             val nearest = findNearestDriverWithin1Km()
